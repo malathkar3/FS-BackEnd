@@ -1,6 +1,5 @@
-const { parseDocxToHtml } = require('../services/docxParser.service');
+const { extractHtmlFromDocx } = require('../services/docxParser.service');
 const { extractTables } = require('../services/tableExtractor.service');
-const { analyzeTimetable } = require('../services/timetableAnalyser.service');
 
 // Store last parsed result in memory
 let lastParsedData = null;
@@ -11,9 +10,17 @@ const uploadTimetable = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'No file uploaded' });
     }
 
-    const html = await parseDocxToHtml(req.file.buffer);
-    const tables = extractTables(html);
-    const data = analyzeTimetable(tables);
+    // New extraction pipeline: Docx -> HTML -> Table Extractor
+    const html = await extractHtmlFromDocx(req.file.buffer);
+    const data = extractTables(html);
+
+    // Validate that we actually found some faculty data
+    if (!data || Object.keys(data).length === 0) {
+      return res.status(422).json({ 
+        success: false, 
+        message: 'Parsing failed: No faculty or timetable structure detected in the document.' 
+      });
+    }
 
     lastParsedData = data;
 
@@ -22,7 +29,11 @@ const uploadTimetable = async (req, res, next) => {
       data: data
     });
   } catch (error) {
-    next(error);
+    console.error('Upload error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Internal server error during parsing'
+    });
   }
 };
 

@@ -1,78 +1,91 @@
-const { days, periods } = require('../config/slots.config');
-const { parseCell } = require('../utils/cellParser');
-const { generateAllSlots } = require('../utils/slotGenerator');
+// const DAYS = ["MON", "TUE", "WED", "THU", "FRI", "SAT"];
 
-const analyzeTimetable = (tables) => {
-  const facultyData = {};
-  const allPossibleSlots = generateAllSlots();
+// const BREAK_SLOTS = ["11:0-11:15", "01:1-2:00"];
 
-  tables.forEach(table => {
-    // Assuming Table format:
-    // Row 0: Headers (Days) -> ["", "Monday", "Tuesday", ...]
-    // Col 0: Period Labels -> ["", "P1", "P2", ...]
-    
-    // Find column indices for days
-    const dayIndices = {};
-    const headerRow = table[0];
-    if (!headerRow) return;
+// const cleanTime = (time) => time.replace(/\s+/g, "");
 
-    headerRow.forEach((cell, index) => {
-      const dayName = cell.trim();
-      if (days.includes(dayName)) {
-        dayIndices[dayName] = index;
-      }
-    });
+// const extractFacultyFromCell = (cellText) => {
+//   if (!cellText) return [];
 
-    // Iterate through rows (skipping header)
-    table.slice(1).forEach(row => {
-      const periodLabel = row[0]?.trim();
-      if (!periods.includes(periodLabel)) return;
+//   return cellText
+//     .split(/[\s,\/+-]+/)
+//     .map(t => t.trim())
+//     .filter(t => /^[A-Z]{2,4}$/.test(t));
+// };
 
-      // For each day, get the cell data
-      days.forEach(day => {
-        const colIndex = dayIndices[day];
-        if (colIndex === undefined) return;
+// const analyzeTimetable = ({ timetableRows, facultyMap }) => {
+//   const facultyData = {};
 
-        const cellContent = row[colIndex];
-        const parsed = parseCell(cellContent);
+//   timetableRows.forEach(({ day, slots }) => {
+//     slots.forEach(({ timeLabel, cellText }) => {
 
-        if (parsed && parsed.faculty) {
-          const facultyName = parsed.faculty;
-          
-          if (!facultyData[facultyName]) {
-            facultyData[facultyName] = {
-              schedule: [],
-              busySlotsKeys: new Set() // For easy free slot filtering
-            };
-          }
+//       const cleanLabel = cleanTime(timeLabel);
 
-          facultyData[facultyName].schedule.push({
-            day,
-            period: periodLabel,
-            subject: parsed.subject
-          });
-          
-          facultyData[facultyName].busySlotsKeys.add(`${day}-${periodLabel}`);
-        }
-      });
-    });
-  });
+//       // 🚫 Skip breaks
+//       if (BREAK_SLOTS.some(b => cleanLabel.includes(cleanTime(b)))) {
+//         return;
+//       }
 
-  // Calculate free slots for each faculty
-  const result = {};
-  Object.keys(facultyData).forEach(name => {
-    const faculty = facultyData[name];
-    const freeSlots = allPossibleSlots.filter(
-      slot => !faculty.busySlotsKeys.has(`${slot.day}-${slot.period}`)
-    );
+//       if (/LUNCH/i.test(cellText)) return;
 
-    result[name] = {
-      schedule: faculty.schedule,
-      freeSlots: freeSlots
-    };
-  });
+//       const facultyInitials = extractFacultyFromCell(cellText);
 
-  return result;
-};
+//       facultyInitials.forEach(init => {
+//         const fullName = facultyMap[init] || init;
 
-module.exports = { analyzeTimetable };
+//         if (!facultyData[fullName]) {
+//           facultyData[fullName] = {
+//             schedule: [],
+//             busySet: new Set()
+//           };
+//         }
+
+//         const key = `${day}-${cleanLabel}`;
+
+//         if (!facultyData[fullName].busySet.has(key)) {
+//           facultyData[fullName].schedule.push({
+//             day,
+//             time: cleanLabel,
+//             subject: cellText
+//           });
+
+//           facultyData[fullName].busySet.add(key);
+//         }
+//       });
+//     });
+//   });
+
+//   // 🧮 Calculate free slots
+//   const allSlots = [];
+
+//   timetableRows.forEach(({ day, slots }) => {
+//     slots.forEach(({ timeLabel }) => {
+//       const cleanLabel = cleanTime(timeLabel);
+
+//       if (BREAK_SLOTS.some(b => cleanLabel.includes(cleanTime(b)))) return;
+
+//       allSlots.push({ day, time: cleanLabel });
+//     });
+//   });
+
+//   const result = {};
+
+//   Object.keys(facultyData).forEach(name => {
+//     const busy = facultyData[name].busySet;
+
+//     const freeSlots = allSlots.filter(
+//       slot => !busy.has(`${slot.day}-${slot.time}`)
+//     );
+
+//     result[name] = {
+//       schedule: facultyData[name].schedule,
+//       freeSlots
+//     };
+//   });
+
+//   console.log("Final Parsed Data:", result);
+
+//   return result;
+// };
+
+// module.exports = { analyzeTimetable };

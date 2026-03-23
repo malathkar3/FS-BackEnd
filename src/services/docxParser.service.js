@@ -1,13 +1,26 @@
 const mammoth = require('mammoth');
 
-const parseDocxToHtml = async (buffer) => {
+/**
+ * Convert DOCX buffer → HTML
+ * (Tables stay intact, which is CRITICAL for parsing)
+ */
+const extractHtmlFromDocx = async (buffer) => {
   try {
     const result = await mammoth.convertToHtml({ buffer });
-    return result.value; // The generated HTML
+
+    if (!result.value) {
+      throw new Error('Empty HTML from DOCX');
+    }
+
+    const html = result.value;
+
+    console.log("HTML extracted successfully");
+    return html;
+
   } catch (error) {
-    console.error('Error parsing DOCX:', error);
-    throw new Error('Failed to parse document');
+    console.error("DOCX → HTML error:", error);
+    throw new Error("Failed to convert DOCX to HTML: " + error.message);
   }
 };
 
-module.exports = { parseDocxToHtml };
+module.exports = { extractHtmlFromDocx };

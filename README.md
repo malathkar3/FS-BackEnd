@@ -1,129 +1,176 @@
-# Timetable Dashboard Backend (fs-backend2)
+# 📅 Timetable Dashboard Backend (V2)
 
-A Node.js & Express-based robust backend application designed to upload, parse, and analyze university/school timetables from Word `.docx` files. It converts the `.docx` file into structured JSON data by extracting tables, determining faculty schedules, and automatically calculating the free continuous slots available for each faculty member.
-
-## 🚀 Features
-
-- **Upload Timetables**: Upload a Microsoft Word (`.docx`) document containing timetable tables.
-- **DOCX Parsing**: Utilizes `mammoth` and `cheerio` to parse Word documents into HTML and carefully extract table rows and columns.
-- **Data Analysis**: Automatically maps tables against a configuration of Days (e.g., Monday-Friday) and Periods (P1, P2...).
-- **Faculty Schedules**: Extracts which subject a faculty is teaching at what period/day.
-- **Free Slot Calculation**: Determines when a faculty member is free based on all possible slots in the week.
-- **In-Memory Storage**: The most recently uploaded timetable data is kept in memory to provide fast query responses.
+A robust Node.js & Express-based backend designed for parsing complex university/college timetable documents (.docx) and extracting structured data for faculty schedules and free time slots.
 
 ---
 
-## 🛠️ Technology Stack
+## 🛠️ Features
 
-- **Runtime**: Node.js
-- **Framework**: Express.js
-- **File Upload**: Multer (In-Memory buffer)
-- **DOCX Parser**: Mammoth
-- **HTML DOM Parser**: Cheerio
-- **Environment config**: dotenv
-- **CORS Support**: cors
+- **Advanced DOCX Parsing**: Handles complex multi-table structures including merged cells (`colspan`).
+- **Dynamic Legend Mapping**: Automatically maps faculty initials (e.g., `HK`) to full names (e.g., `Mr. HARI KRISHNAN N`) using a legend table.
+- **Smart Filtering**: Filters out non-teaching slots like "LUNCH", "BREAK", and "PROCTORING".
+- **Free Slot Calculation**: Automatically calculates available time slots for each faculty member across the entire week (MON-SAT).
+- **In-Memory Store**: Performance-optimized caching for fast query responses.
 
 ---
 
-## ⚙️ Getting Started
+## 🚀 Getting Started
 
-### Prerequisites
-Make sure you have Node.js and NPM installed on your machine.
+### 1. Prerequisites
+- Node.js (v18+)
+- npm
 
-### Installation
+### 2. Installation
+```bash
+git clone <repository-url>
+cd fs-backend2
+npm install
+```
 
-1. Clone or download the project.
-2. Navigate into the project directory:
-   ```bash
-   cd fs-backend2
-   ```
-3. Install dependencies:
-   ```bash
-   npm install
-   ```
-4. Start the server (development mode with nodemon):
-   ```bash
-   npm run dev
-   ```
-5. Or start the server in production mode:
-   ```bash
-   npm start
-   ```
+### 3. Environment Setup
+Create a `.env` file in the root directory:
+```env
+PORT=5000
+```
 
-By default, the server runs on `PORT 5000` (can be overridden via `.env`).
+### 4. Running the App
+```bash
+# Development mode
+npm run dev
+
+# Production mode
+npm start
+```
 
 ---
 
-## 📡 API Endpoints
+## 📡 API Documentation for Frontend Engineers
 
-### 1. Health Check
-Check if the server is running properly.
-- **Endpoint**: `/health`
-- **Method**: `GET`
+### **Base URL**: `http://localhost:5000/api`
+
+---
+
+### **1. Upload Timetable**
+Upload a `.docx` file to parse and analyze. This action overwrites any previous data currently in memory.
+
+- **Endpoint**: `/upload-timetable`
+- **Method**: `POST`
+- **Request Type**: `multipart/form-data`
+- **Payload**:
+  - `file`: (The `.docx` document)
 - **Response**:
   ```json
-  { "status": "ok" }
+  {
+    "success": true,
+    "data": {
+      "Mr. HARI KRISHNAN N": {
+        "schedule": [
+          { "day": "MON", "period": "09:00-10:00", "subject": "FS" },
+          { "day": "TUE", "period": "11:15-12:15", "subject": "DAA" }
+        ],
+        "freeSlots": [
+          { "day": "MON", "period": "10:00-11:00" },
+          { "day": "WED", "period": "09:00-10:00" }
+        ]
+      }
+    }
+  }
   ```
 
 ---
 
-### 2. Upload Timetable
-Uploads the `.docx` timetable file to be parsed and stored.
-- **Endpoint**: `/api/upload-timetable`
-- **Method**: `POST`
-- **Content-Type**: `multipart/form-data`
-- **Form-Data key**: `file` (Must attach the `.docx` file)
-- **Response**: Returns the fully parsed structured data linking faculties to their schedules and free slots.
+### **2. Get Faculty List**
+Returns a flat array of all parsed faculty names.
 
----
-
-### 3. Get Faculty List
-Retrieves a list of all distinct faculty members discovered in the latest parsed timetable.
-- **Endpoint**: `/api/faculty`
+- **Endpoint**: `/faculty`
 - **Method**: `GET`
-- **Response**: Array of faculty names.
+- **Response**:
+  ```json
+  {
+    "success": true,
+    "data": [
+      "Mr. HARI KRISHNAN N",
+      "Mrs. SARITHA P",
+      "Mr. JITHEESH K"
+    ]
+  }
+  ```
 
 ---
 
-### 4. Get Faculty Schedule
-Retrieves the assigned timetable/schedule for a specific faculty member.
-- **Endpoint**: `/api/faculty/:name/timetable`
+### **3. Get Faculty Schedule**
+Returns the weekly teaching schedule for a specific faculty member.
+
+- **Endpoint**: `/faculty/:name/timetable`
 - **Method**: `GET`
-- **Path Parameter**: `name` (URL encoded string of the faculty's name, e.g., `Amit%20Sharma`)
-- **Response**: Array of schedule objects detailing day, period, and assigned subject.
+- **Example**: `/api/faculty/Mr.%20HARI%20KRISHNAN%20N/timetable`
+- **Response**:
+  ```json
+  {
+    "success": true,
+    "data": [
+      { "day": "MON", "period": "09:00-10:00", "subject": "FS" },
+      { "day": "WED", "period": "14:00-15:00", "subject": "FS LAB" }
+    ]
+  }
+  ```
 
 ---
 
-### 5. Get Faculty Free Slots
-Retrieves an array of computed "free" slots for a specific faculty member.
-- **Endpoint**: `/api/faculty/:name/free-slots`
+### **4. Get Faculty Free Slots**
+Returns all available time slots where the faculty member is not teaching.
+
+- **Endpoint**: `/faculty/:name/free-slots`
 - **Method**: `GET`
-- **Path Parameter**: `name` (URL encoded string of the faculty's name)
-- **Response**: Array of slot objects (day and period) where the faculty is currently unassigned/free.
+- **Example**: `/api/faculty/Mrs.%20SARITHA%20P/free-slots`
+- **Response**:
+  ```json
+  {
+    "success": true,
+    "data": [
+      { "day": "MON", "period": "10:00-11:00" },
+      { "day": "MON", "period": "14:00-15:00" },
+      { "day": "TUE", "period": "09:00-10:00" }
+    ]
+  }
+  ```
 
 ---
 
-## 📁 Project Structure
+### **5. Health Check**
+Check if the server is alive.
+
+- **Endpoint**: `/health`
+- **Method**: `GET`
+- **Response**: `{ "status": "ok" }`
+
+---
+
+## 🏗️ Project Architecture
 
 ```text
 fs-backend2/
-├── app.js                   # Application initialization & routing setup
-├── server.js                # Server entry point
-├── package.json             # Project metadata and dependencies
-├── .env                     # Environment variables
 ├── src/
-│   ├── config/              # Timetable slots config (Days, Periods)
-│   ├── controllers/         # Handlers for specific API routes (upload, faculty)
-│   ├── middleware/          # Express middlewares (CORS, error handling, Multer)
-│   ├── routes/              # Express API route declarations 
-│   ├── services/            # Business logic (DOCX parsing, extracting tables, analysis)
-│   └── utils/               # Helper functions (Cell parsing, Slot generating)
+│   ├── routes/              # Express route declarations
+│   ├── controllers/         # Request handling & data injection
+│   ├── services/            # Core Business Logic
+│   │   ├── docxParser       # DOCX -> HTML
+│   │   ├── tableExtractor   # HTML -> Structured Row/Cell Data
+│   │   └── timetableAnalyser# Data -> Faculty Schedule/FreeSlots Mapping
+│   ├── middleware/          # Multer & Error Handling
+│   └── utils/               # Formatting Helpers
+├── app.js                   # App configuration (CORS, Middlewares)
+└── server.js                # Server entry point
 ```
 
-## 🤝 How it works under the hood
-1. **Upload**: A user sends a `.docx` file through the `/api/upload-timetable` POST endpoint. 
-2. **Parsing**: The buffer is passed to `mammoth` to convert the DOCX file to an HTML string.
-3. **Extraction**: `cheerio` reads the HTML, loops through all `<table>` tags, and constructs a 2D array of rows and columns.
-4. **Analysis**: The `timetableAnalyser.service` reads the 2D array, matches the top header row with available 'Days', and the first column to available 'Periods'. It parses each grid cell to extract the assigned individual faculty name.
-5. **Compute Free Slots**: Once all busy slots are identified, the system subtracts them from the total possible weekly slots to determine free time.
-6. **Query Endpoints**: `GET` requests check the stored mapped data to serve faculty schedules efficiently.
+## 🛠️ Data Extraction Logic
+
+1.  **Grid Detection**: Table 0 is assumed to be the timetable grid where Row 1 contains Days (`MON`, `TUE`, etc.) and the headers contain Time Labels.
+2.  **Initial Resolving**: Table 1 is parsed as a Legend. It looks for abbreviations (like `HK`) and maps them to their honorary full names (`Mr. HARI KRISHNAN N`).
+3.  **Colspan Handling**: The parser "explodes" merged cells across multiple columns to ensure time-slot accuracy.
+4.  **Auto-Filter**: Any cell containing keywords like `LUNCH`, `BREAK`, or `SPORTS` is considered "Free" for the faculty unless explicitly assigned.
+
+---
+
+## 📄 License
+ISC License
