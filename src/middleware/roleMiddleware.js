@@ -17,7 +17,7 @@ const roleMiddleware = (requiredRole) => {
 
       const uid = req.user.uid;
       const email = req.user.email;
-      
+
       // 1. Try UID lookup in 'admin'
       let adminDoc = await db.collection('admin').doc(uid).get();
       if (!adminDoc.exists && email) {

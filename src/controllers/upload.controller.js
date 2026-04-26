@@ -1,38 +1,62 @@
 const { extractHtmlFromDocx } = require('../services/docxParser.service');
-const { extractTables } = require('../services/tableExtractor.service');
+const { extractTables, getTimetableJson } = require('../services/tableExtractor.service');
+const { saveTimetableData } = require('../services/firestore.service');
 
-// Store last parsed result in memory
+// Store last parsed result in memory (optional, kept for compatibility)
 let lastParsedData = null;
 
 const uploadTimetable = async (req, res, next) => {
   try {
+    const { semester, section } = req.body;
+
     if (!req.file) {
       return res.status(400).json({ success: false, message: 'No file uploaded' });
     }
 
-    // New extraction pipeline: Docx -> HTML -> Table Extractor
-    const html = await extractHtmlFromDocx(req.file.buffer);
-    const data = extractTables(html);
-
-    // Validate that we actually found some faculty data
-    if (!data || Object.keys(data).length === 0) {
-      return res.status(422).json({ 
+    if (!semester || !section) {
+      return res.status(400).json({ 
         success: false, 
-        message: 'Parsing failed: No faculty or timetable structure detected in the document.' 
+        message: 'Semester and Section are required in the request body.' 
       });
     }
 
-    lastParsedData = data;
+    // 1. Convert Docx to HTML
+    const html = await extractHtmlFromDocx(req.file.buffer);
+
+    // 2. Extract Data (both formats)
+    const facultyMappedData = extractTables(html);
+    const timetableJson = getTimetableJson(html);
+
+    // Validate parsing
+    if (!timetableJson.schedule || timetableJson.schedule.length === 0) {
+      return res.status(422).json({ 
+        success: false, 
+        message: 'Parsing failed: No timetable structure detected in the document.' 
+      });
+    }
+
+    // 3. Store to Firestore
+    const firestoreResult = await saveTimetableData({
+      semester,
+      section,
+      schedule: timetableJson.schedule,
+      freeSlots: timetableJson.freeSlots
+    });
+
+    lastParsedData = facultyMappedData;
 
     res.status(200).json({
       success: true,
-      data: data
+      message: 'Timetable uploaded and stored successfully.',
+      details: firestoreResult,
+      data: facultyMappedData // Returning faculty map for frontend if needed
     });
+
   } catch (error) {
-    console.error('Upload error:', error);
+    console.error('Upload & Storage error:', error);
     res.status(500).json({
       success: false,
-      message: error.message || 'Internal server error during parsing'
+      message: error.message || 'Internal server error during processing'
     });
   }
 };

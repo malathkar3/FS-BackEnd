@@ -2,7 +2,7 @@ const mammoth = require('mammoth');
 
 /**
  * Convert DOCX buffer → HTML
- * (Tables stay intact, which is CRITICAL for parsing)
+ * Tables stay intact which is CRITICAL for parsing.
  */
 const extractHtmlFromDocx = async (buffer) => {
   try {
@@ -12,10 +12,15 @@ const extractHtmlFromDocx = async (buffer) => {
       throw new Error('Empty HTML from DOCX');
     }
 
-    const html = result.value;
+    if (result.messages && result.messages.length > 0) {
+      const warnings = result.messages.filter(m => m.type === 'warning');
+      if (warnings.length > 0) {
+        console.warn(`DOCX conversion warnings (${warnings.length}):`, warnings.map(w => w.message));
+      }
+    }
 
     console.log("HTML extracted successfully");
-    return html;
+    return result.value;
 
   } catch (error) {
     console.error("DOCX → HTML error:", error);

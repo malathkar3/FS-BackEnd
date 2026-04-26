@@ -19,9 +19,9 @@ const authMiddleware = async (req, res, next) => {
 
   try {
     const decodedToken = await auth.verifyIdToken(token);
-    req.user = { 
+    req.user = {
       uid: decodedToken.uid,
-      email: decodedToken.email 
+      email: decodedToken.email
     };
     next();
   } catch (error) {
